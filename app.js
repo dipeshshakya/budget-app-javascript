@@ -13,7 +13,13 @@ var budgetController = (function(){
 		this.value=value;
 	}; 
 
-		
+	var calculateTotal = function(type){
+		var sum = 0;
+		data.allItems[type].forEach(function(cur){
+			sum += cur.value;
+		});
+		data.totals[type] = sum;
+	};
 	// data obj
 	var data = {
 		allItems:{
@@ -23,7 +29,9 @@ var budgetController = (function(){
 		totals:{
 			exp:0,
 			inc:0
-		}
+		},
+		budget:0,
+		percentage:-1
 		
 	}
 
@@ -54,7 +62,30 @@ var budgetController = (function(){
 		
 		testing:function(){
 			console.log(data);
-		}
+		},
+		calculateBudget:function(){
+			// calc total income and expense
+			calculateTotal('exp');
+			calculateTotal('inc');
+			// calc budget :income-expense
+			data.budget = data.totals.inc-data.totals.exp;
+			// calc the percentage of the  income that we spent
+			if (data.totals.inc > 0) {
+				data.percentage =Math.round((data.totals.exp/data.totals.inc)*100);
+			}else{
+				data.percentage = -1;
+			}
+			
+		},
+		getBudget:function(){
+			return{
+				budget:data.budget,
+				totalInc:data.totals.inc,
+				totalExp:data.totals.exp,
+				percentage:data.percentage
+
+			}
+		},
 	};
 
 })();
@@ -68,14 +99,18 @@ var UIController =(function(){
 		inputValue:'.add__value',
 		inputBtn:'.add__btn',
 		incomeContainer:'.income__list',
-		expenseContainer:'.expenses__list'
+		expenseContainer:'.expenses__list',
+		budgetLabel:'.budget__value',
+		incomeLabel:'.budget__income--value',
+		expenseLabel:'.budget__expenses--value',
+		percentageLabel:'.budget__expenses--percentage',
 	}
 	 return {
 		getInput: function(){
 			return{
 				type:document.querySelector(DOMstrings.inputType).value,
 				description:document.querySelector(DOMstrings.inputDescription).value,
-				value:document.querySelector(DOMstrings.inputValue).value
+				value:parseFloat(document.querySelector(DOMstrings.inputValue).value)
 			};
 		},
 		addListItem:function(obj,type){
@@ -101,7 +136,31 @@ var UIController =(function(){
 		},
 		getDOMstrings:function(){
 			return DOMstrings;
+		},
+		clearfields:function(){
+			var fields,fieldsArr;
+			fields = document.querySelectorAll(DOMstrings.inputDescription + ','+DOMstrings.inputValue);
+			fieldsArr = Array.prototype.slice.call(fields);
+
+			fieldsArr.forEach(function(current,index,array){
+				current.value = "";
+			});
+			fieldsArr[0].focus();
+		},
+		displayBudget:function(obj){
+			// console.log(obj.budget);
+			document.querySelector(DOMstrings.budgetLabel).textContent = obj.budget;
+			document.querySelector(DOMstrings.incomeLabel).textContent = obj.totalInc;
+			document.querySelector(DOMstrings.expenseLabel).textContent = obj.totalExp;
+			
+
+			if (obj.percentage > 0) {
+				document.querySelector(DOMstrings.percentageLabel).textContent = obj.percentage + '%';
+			}else{
+				document.querySelector(DOMstrings.percentageLabel).textContent = '---';
+			}
 		}
+
 	};
 
 })();
@@ -122,25 +181,48 @@ var controller = (function(budgetCtrl,UICtrl){
 		});
 
 	}
+	var updateBudget =function(){
+		// 1.calculate the budget
+		budgetCtrl.calculateBudget();
 
+		// return the budget
+		var budget = budgetCtrl.getBudget();
+		// console.log(budget);
+		// 2.display the budget on the ui
+		UICtrl.displayBudget(budget);
+
+	};
 
 	var ctrlAddItem = function(){
 		var input,newItem;
 		// 1. get the field input data
 		input = UICtrl.getInput();
+		if (input.description !== "" && !isNaN(input.value) && input.value > 0) {
 
-		// 2.add item to the budget controller
-		newItem =budgetCtrl.addItem(input.type,input.description,input.value);
-		// 3.add item to the ui 
-		UICtrl.addListItem(newItem,input.type);
-		// 4.calculate the budget
-		// 5.display the budget on the ui
+			// 2.add item to the budget controller
+			newItem =budgetCtrl.addItem(input.type,input.description,input.value);
+			// 3.add item to the ui 
+			UICtrl.addListItem(newItem,input.type);
+			// 4.clear fields
+			UICtrl.clearfields();
+			// 5.calculate and update budget
+			updateBudget();
+
+		}
+		
 		
 	}
 
 	return {
 		init:function(){
 			console.log('app started');
+			UICtrl.displayBudget({
+				budget:0,
+				totalInc:0,
+				totalExp:0,
+				percentage:0
+
+			});
 			setupEventListeners(); 
 
 		}
