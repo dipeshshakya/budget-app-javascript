@@ -5,8 +5,20 @@ var budgetController = (function(){
 		this.id =id;
 		this.description= description;
 		this.value=value;
+		this.percentage = -1;
+	};
+	Expense.prototype.calcPercentage =function(totalIncome){
+		if (totalIncome > 0) {
+
+		this.percentage = Math.round((this.value/totalIncome)*100);
+		}else{
+			this.percentage = -1;
+		}
 	};
 
+	Expense.prototype.getPercentage = function(){
+		return this.percentage;
+	};
 	var Income = function(id,description,value){
 		this.id =id;
 		this.description= description;
@@ -94,6 +106,17 @@ var budgetController = (function(){
 			}
 			
 		},
+		calculatePercentage :function(){
+			data.allItems.exp.forEach(function(cur){
+				cur.calcPercentage(data.totals.inc);
+			});
+		},
+		getPercentage:function(){
+			var allPerc = data.allItems.exp.map(function(cur){
+				return cur.getPercentage();
+			});
+			return allPerc;
+		},
 		getBudget:function(){
 			return{
 				budget:data.budget,
@@ -122,6 +145,8 @@ var UIController =(function(){
 		expenseLabel:'.budget__expenses--value',
 		percentageLabel:'.budget__expenses--percentage',
 		container:'.container',
+		expensePercLabel:'.item__percentage',
+
 	}
 	 return {
 		getInput: function(){
@@ -158,6 +183,24 @@ var UIController =(function(){
 		},
 		getDOMstrings:function(){
 			return DOMstrings;
+		},
+		displayPercentage:function(percentages){
+			var fields = document.querySelectorAll(DOMstrings.expensePercLabel);
+			
+			var nodeListForEach = function(list,callback){
+				for(var i=0; i<list.length; i++){
+					callback(list[i],i);
+				}
+			};
+
+			nodeListForEach(fields,function(current,index){
+				if (percentages[index] > 0) {
+					current.textContent = percentages[index] + '%'; 
+				}else{
+					current.textContent = '--'; 
+				}
+
+			});
 		},
 		clearfields:function(){
 			var fields,fieldsArr;
@@ -217,6 +260,18 @@ var controller = (function(budgetCtrl,UICtrl){
 
 	};
 
+	var updatePercentage =function (){
+		// 1.calculate percentage
+		budgetCtrl.calculatePercentage();
+
+		// 2.read percentage from the budget controller
+		var percentages = budgetCtrl.getPercentage();
+
+		// 3.update the UI with new percentage
+		console.log(percentages);
+		UICtrl.displayPercentage(percentages);
+	};
+
 	var ctrlAddItem = function(){
 		var input,newItem;
 		// 1. get the field input data
@@ -231,6 +286,8 @@ var controller = (function(budgetCtrl,UICtrl){
 			UICtrl.clearfields();
 			// 5.calculate and update budget
 			updateBudget();
+			// 6. update percentages
+			updatePercentage();
 
 		}
 		
@@ -251,6 +308,8 @@ var controller = (function(budgetCtrl,UICtrl){
 			UICtrl.deleteListItem(itemID);
 			// 3.update and show the budget
 			updateBudget();
+			// 4. update percentages
+			updatePercentage();
 		}
 
 	};
